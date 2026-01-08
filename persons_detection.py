@@ -3,6 +3,7 @@ import time
 import datetime
 import sys
 import torch
+import argparse
 
 class PersonDetector:
     """
@@ -11,7 +12,7 @@ class PersonDetector:
     """
     def __init__(self, confidence_threshold=0.5):
         self.confidence_threshold = confidence_threshold
-        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', device='cpu')
+        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', device='cuda:0')
         # self.model = torch.hub.load('ultralytics/yolov5', 'yolov5x', device='cpu')
         self.model.conf = confidence_threshold
         self.model.classes = [0]  # Filter for 'person' class (class 0)
@@ -48,12 +49,13 @@ class PersonDetector:
 
         return person_detected, annotated_frame
 
-    def run_detection_loop(self, detection_interval=60, camera_index=0):
+    def run_detection_loop(self, detection_interval=60, camera_index=0, interval_mode=False):
         """
         Starts the main loop to capture frames and detect persons periodically.
         """
         self._initialize_camera(camera_index)
         print("[INFO] Starting detection loop...")
+        last_detection_time = 0
         try:
             while True:
                 ret, frame = self.cap.read()
@@ -62,10 +64,22 @@ class PersonDetector:
                     time.sleep(1)
                     continue
 
-                person_detected, annotated_frame = self.process_frame(frame)
+                should_detect = True
+                if interval_mode:
+                    if time.time() - last_detection_time < detection_interval:
+                        should_detect = False
+                    else:
+                        last_detection_time = time.time()
+
+                if should_detect:
+                    person_detected, annotated_frame = self.process_frame(frame)
+                    display_frame = annotated_frame
+                else:
+                    person_detected = False
+                    display_frame = frame
                 
                 # Visualize detection
-                cv2.imshow("Person Detection", annotated_frame)
+                cv2.imshow("Person Detection", display_frame)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
@@ -87,12 +101,16 @@ class PersonDetector:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Person Detection Script")
+    parser.add_argument("--interval-mode", action="store_true", help="Run detection at intervals specified by DETECTION_INTERVAL.")
+    args = parser.parse_args()
+
     # --- Configuration ---
     CONFIDENCE_THRESHOLD = 0.5
-    DETECTION_INTERVAL = 60  # 1 minute
+    DETECTION_INTERVAL = 20  # 1 minute
 
     # --- Execution ---
     detector = PersonDetector(
         confidence_threshold=CONFIDENCE_THRESHOLD
     )
-    detector.run_detection_loop(detection_interval=DETECTION_INTERVAL)
+    detector.run_detection_loop(detection_interval=DETECTION_INTERVAL, interval_mode=args.interval_mode)
