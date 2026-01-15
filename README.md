@@ -11,3 +11,6 @@ Based on the ultralytics google collab: https://colab.research.google.com/github
 
 - if needed, before running:
 ``export QT_QPA_PLATFORM=xcb``
+
+- start influxdb docker container:
+``sudo docker run -d -p 8086:8086   --name influxdb   -v influxdb2_data:/var/lib/influxdb2   influxdb:2.0``
