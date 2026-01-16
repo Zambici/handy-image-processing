@@ -135,7 +135,7 @@ class PersonDetector:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Person Detection Script")
-    parser.add_argument("--interval-mode", action="store_true", help="Run detection at intervals specified by DETECTION_INTERVAL.")
+    parser.add_argument("--interval-mode", default="10", help="Run detection at intervals specified by DETECTION_INTERVAL.")
     parser.add_argument("--influx-url", default="http://localhost:8086", help="InfluxDB URL")
     parser.add_argument("--influx-token", default="28bcEXQMj8jHC-Jrgqv-YxgUmDIxXPaolDQpXPxazJSl4y2M_UwaxA_p2N1X_xtWi_tD2hAbUjSE6huzKa4KuA==", help="InfluxDB Token")
     parser.add_argument("--influx-org", default="digi", help="InfluxDB Organization")
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     # --- Configuration ---
     CONFIDENCE_THRESHOLD = 0.4
-    DETECTION_INTERVAL = 10  # seconds
+    DETECTION_INTERVAL = int(args.interval_mode)  # seconds
     
     influx_config = {
         'url': args.influx_url,
