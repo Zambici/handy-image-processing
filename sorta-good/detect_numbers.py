@@ -82,20 +82,48 @@ def detect_and_read_numbers(original, show_steps=False, processing_width=1280):
                     area_outer = pw * ph
                     
                     if 0.4 < (area_inner / area_outer) < 0.95:
-                        # Add a small padding (margin) to remove the border line itself from the OCR
-                        margin = int(min(w, h) * 0.1)
-                        roi = gray[y+margin : y+h-margin, x+margin : x+w-margin]
+                        # Use minAreaRect to handle rotation (deskewing)
+                        rect = cv2.minAreaRect(cnt)
+                        box = cv2.boxPoints(rect)
+                        box_pts = np.array(box, dtype="float32")
+
+                        # Order points: top-left, top-right, bottom-right, bottom-left
+                        s = box_pts[np.argsort(box_pts[:, 1])]
+                        top = s[:2, :][np.argsort(s[:2, 0])]
+                        bottom = s[2:, :][np.argsort(s[2:, 0])]
+                        tl, tr, bl, br = top[0], top[1], bottom[0], bottom[1]
                         
-                        if roi.size == 0 or roi.shape[0] == 0 or roi.shape[1] == 0:
+                        src_pts = np.array([tl, tr, br, bl], dtype="float32")
+                        
+                        # Calculate dimensions for the deskewed ROI
+                        w_a = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+                        w_b = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+                        max_w = max(int(w_a), int(w_b))
+                        
+                        h_a = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+                        h_b = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+                        max_h = max(int(h_a), int(h_b))
+                        
+                        dst_pts = np.array([[0, 0], [max_w-1, 0], [max_w-1, max_h-1], [0, max_h-1]], dtype="float32")
+                        
+                        M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+                        roi_deskewed = cv2.warpPerspective(gray, M, (max_w, max_h))
+                        
+                        # Apply margin to remove the border lines from the deskewed image
+                        margin_w, margin_h = int(max_w * 0.1), int(max_h * 0.1)
+                        roi = roi_deskewed[margin_h:max_h-margin_h, margin_w:max_w-margin_w]
+                        
+                        if roi.size == 0 or roi.shape[0] < 5 or roi.shape[1] < 5:
                             continue
 
                         if show_steps:
-                            cv2.imshow("ROI", roi)
+                            cv2.imshow("ROI Deskewed", roi)
 
                         # 6. Recognize Text
                         # Enhance ROI for Tesseract: simple threshold
                         _, roi_thresh = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-                        cv2.imshow("ROI Threshold", roi_thresh)
+                        if show_steps:
+                            cv2.imshow("ROI Threshold", roi_thresh)
                         
                         # Configuration for Tesseract:
                         # --psm 7: Treat the image as a single text line.
@@ -107,9 +135,11 @@ def detect_and_read_numbers(original, show_steps=False, processing_width=1280):
                         if text:
                             # Map coordinates back to original scale for visualization
                             ox, oy, ow, oh = int(x/scale), int(y/scale), int(w/scale), int(h/scale)
+                            rescaled_box = (box / scale).astype(np.int32)
                             
-                            # Draw valid detection
-                            cv2.rectangle(original, (ox, oy), (ox + ow, oy + oh), (0, 255, 0), 2)
+                            # Draw valid detection (rotated)
+                            cv2.polylines(original, [rescaled_box], True, (0, 255, 0), 2)
+                            
                             # Label
                             label_pos = (ox, oy - 10) if oy - 10 > 10 else (ox, oy + oh + 20)
                             cv2.putText(original, f"Val: {text}", label_pos, 
