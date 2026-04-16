@@ -33,12 +33,17 @@ class PersonDetector:
             except Exception as e:
                 print(f"[ERROR] Failed to connect to InfluxDB: {e}")
 
-    def _initialize_camera(self, camera_index=0):
+    def _initialize_camera(self, source='0'):
         """Initializes the video capture device."""
-        print("[INFO] Starting video stream...")
-        self.cap = cv2.VideoCapture(camera_index)
+        print(f"[INFO] Starting video stream from source: {source}...")
+        # Try to convert source to int for webcam index, otherwise treat as path/URL
+        try:
+            source = int(source)
+        except ValueError:
+            pass
+        self.cap = cv2.VideoCapture(source)
         if not self.cap.isOpened():
-            print("[ERROR] Could not open webcam.")
+            print(f"[ERROR] Could not open video source: {source}")
             sys.exit(1)
         # Allow the camera sensor to warm up
         time.sleep(2.0)
@@ -77,11 +82,11 @@ class PersonDetector:
             except Exception as e:
                 print(f"[ERROR] Failed to write to InfluxDB: {e}")
 
-    def run_detection_loop(self, detection_interval=60, camera_index=0, interval_mode=False):
+    def run_detection_loop(self, detection_interval=60, source='0', interval_mode=False):
         """
         Starts the main loop to capture frames and detect persons periodically.
         """
-        self._initialize_camera(camera_index)
+        self._initialize_camera(source)
         print("[INFO] Starting detection loop...")
         last_detection_time = 0
         try:
@@ -135,7 +140,8 @@ class PersonDetector:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Person Detection Script")
-    parser.add_argument("--interval-mode", default="10", help="Run detection at intervals specified by DETECTION_INTERVAL.")
+    parser.add_argument("--source", default='0', help="Video source. Can be a webcam index (e.g., '0'), a video file path, or an RTSP stream URL.")
+    parser.add_argument("--detection-interval", type=int, default=10, help="Interval in seconds between detections. Set to 0 to detect on every frame.")
     parser.add_argument("--influx-url", default="http://localhost:8086", help="InfluxDB URL")
     parser.add_argument("--influx-token", default="28bcEXQMj8jHC-Jrgqv-YxgUmDIxXPaolDQpXPxazJSl4y2M_UwaxA_p2N1X_xtWi_tD2hAbUjSE6huzKa4KuA==", help="InfluxDB Token")
     parser.add_argument("--influx-org", default="digi", help="InfluxDB Organization")
@@ -144,7 +150,8 @@ if __name__ == "__main__":
 
     # --- Configuration ---
     CONFIDENCE_THRESHOLD = 0.4
-    DETECTION_INTERVAL = int(args.interval_mode)  # seconds
+    DETECTION_INTERVAL = args.detection_interval  # seconds
+    INTERVAL_MODE = DETECTION_INTERVAL > 0
     
     influx_config = {
         'url': args.influx_url,
@@ -158,4 +165,8 @@ if __name__ == "__main__":
         confidence_threshold=CONFIDENCE_THRESHOLD,
         influx_config=influx_config
     )
-    detector.run_detection_loop(detection_interval=DETECTION_INTERVAL, interval_mode=args.interval_mode)
+    detector.run_detection_loop(
+        detection_interval=DETECTION_INTERVAL,
+        interval_mode=INTERVAL_MODE,
+        source=args.source
+    )
