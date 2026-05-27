@@ -68,3 +68,8 @@ tzdata==2025.3
 ultralytics==8.3.248
 ultralytics-thop==2.0.18
 urllib3==2.6.2
+opencv-python-headless
+torch
+torchvision
+influxdb-client
+requests

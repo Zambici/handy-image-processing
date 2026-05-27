@@ -1,0 +1,19 @@
+services:
+  person-detector:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: >
+      --source rtsp://192.168.1.227:8554/webCamStream
+      --detection-interval 60
+      --influx-url http://193.180.212.230:8182
+      --influx-token token
+      --influx-bucket cameras
+      --influx-org org
+      --no-view
+    # devices:
+    #   - "/dev/video0:/dev/video0" # Mapping the host webcam to the container
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    network_mode: host # Required to reach the RTSP stream on the local network
