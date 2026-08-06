@@ -18,5 +18,5 @@ Script to train a YOLOv8 model on your custom dataset.
 
 ## Usage
 
-1. **Prepare Dataset**: Use `create_dataset_from_video.py` to extract frames. You may need to modify the script to point to your input video folder.
+1. **Prepare Dataset**: Use `create_dataset_from_video.py` to extract frames. You may need to modify the script to point to your input video folder. There might be multiple videos in the folder. One **important** aspect will be to have only the object filmed on a plain contrasting background in order to extract and identify correctly the object of interest.
 2. **Train**: Run `train_object_detection.py` to start training. Ensure your dataset directory structure matches what YOLOv8 expects and that `data.yaml` is present.
